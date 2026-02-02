@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>My Valentine ❤️</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --accent:#ff4e8a;
+      --accent-2:#ff758c;
+      --card-bg: rgba(255,255,255,0.15);
+      --text:#fff;
+      --card-max-width:380px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(135deg,var(--accent),var(--accent-2));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--text);
+      text-align:center;
+      overflow:hidden;
+    }
+
+    .card{
+      width:clamp(280px,90vw,var(--card-max-width));
+      background:var(--card-bg);
+      padding:32px;
+      border-radius:18px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+      position:relative;
+      z-index:2;
+    }
+
+    h1{font-size:1.6rem;margin:0 0 10px}
+    p{font-size:1rem;margin:0 0 16px;line-height:1.4}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+
+    button{
+      background:#fff;color:var(--accent);
+      border:0;padding:10px 18px;border-radius:999px;
+      cursor:pointer;font-size:0.95rem;transition:transform .18s ease,background .18s;
+    }
+    button:focus{outline:3px solid rgba(255,255,255,0.25);outline-offset:3px}
+    button:hover{transform:translateY(-3px);background:#ffe6ee}
+
+    .secondary{
+      background:transparent;border:1px solid rgba(255,255,255,0.18);color:#fff;
+    }
+
+    /* Hidden sections */
+    [data-hidden="true"]{display:none}
+
+    /* Floating hearts container (below card) */
+    .hearts {
+      pointer-events:none;
+      position:fixed;
+      inset:0;
+      z-index:1;
+      overflow:hidden;
+    }
+
+    .heart {
+      position:absolute;
+      will-change:transform,opacity;
+      font-size:18px;
+      opacity:0.95;
+      transform-origin:center;
+      animation-name:floatUp;
+      animation-timing-function:linear;
+      animation-iteration-count:1;
+    }
+
+    @keyframes floatUp {
+      0%{transform:translateY(0) scale(1);opacity:1}
+      60%{opacity:0.95}
+      100%{transform:translateY(-110vh) scale(1.3);opacity:0}
+    }
+
+    /* Respect user's reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      .heart { animation: none; display:none }
+    }
+
+    /* Small responsive tweaks */
+    @media (max-width:360px){
+      h1{font-size:1.25rem}
+      button{padding:8px 12px}
+    }
+  </style>
+</head>
+<body>
+  <!-- Background music (no autoplay) -->
+  <audio id="bgMusic" preload="metadata" aria-hidden="true">
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
+  <main class="card" id="card" role="region" aria-labelledby="card-heading">
+    <h1 id="card-heading">Hey ❤️</h1>
+    <p>You make my world brighter every single day.</p>
+
+    <div class="controls" aria-hidden="false">
+      <button id="openBtn">Click Here 💕</button>
+      <button id="muteBtn" class="secondary" aria-pressed="false">Mute</button>
+      <button id="audioToggle" class="secondary" aria-pressed="false">Play Music</button>
+    </div>
+
+    <section id="proposal" aria-labelledby="proposal-heading" data-hidden="true">
+      <h1 id="proposal-heading">Will you be my Valentine? 💍❤️</h1>
+      <div class="controls">
+        <button id="yesBtn">Yes 😍</button>
+        <button id="noBtn" class="secondary">No 🙈</button>
+      </div>
+    </section>
+
+    <section id="loveMessage" aria-labelledby="love-heading" data-hidden="true">
+      <h1 id="love-heading">❤️ My Love ❤️</h1>
+      <p>
+        From the moment you entered my life, everything felt warmer and happier.
+        Your smile is my favorite sight, and your presence makes every day special.
+        I promise to care, respect, and stand by you always.
+        This is just the beginning of our beautiful journey together 💕
+      </p>
+    </section>
+  </main>
+
+  <div class="hearts" id="hearts" aria-hidden="true"></div>
+
+  <script>
+    (function(){
+      const bg = document.getElementById('bgMusic');
+      const openBtn = document.getElementById('openBtn');
+      const proposal = document.getElementById('proposal');
+      const loveMessage = document.getElementById('loveMessage');
+      const yesBtn = document.getElementById('yesBtn');
+      const noBtn = document.getElementById('noBtn');
+      const heartsContainer = document.getElementById('hearts');
+      const audioToggle = document.getElementById('audioToggle');
+      const muteBtn = document.getElementById('muteBtn');
+
+      let heartsInterval = null;
+      let heartsEnabled = true;
+
+      // Utility: show/hide sections with ARIA toggle
+      function show(element){
+        element.removeAttribute('data-hidden');
+        element.setAttribute('aria-hidden','false');
+      }
+      function hide(element){
+        element.setAttribute('data-hidden','true');
+        element.setAttribute('aria-hidden','true');
+      }
+
+      // Handle play/pause with promise handling (user gesture required)
+      function safePlayAudio(){
+        bg.play().then(()=> {
+          audioToggle.textContent = 'Pause Music';
+          audioToggle.setAttribute('aria-pressed','true');
+        }).catch(err=>{
+          // Playback failed (autoplay blocked) — fall back to change UI only
+          audioToggle.textContent = 'Play Music';
+          audioToggle.setAttribute('aria-pressed','false');
+          console.warn('Playback prevented:', err);
+        });
+      }
+      function safePauseAudio(){
+        try { bg.pause(); } catch(e){}
+        audioToggle.textContent = 'Play Music';
+        audioToggle.setAttribute('aria-pressed','false');
+      }
+
+      // Start love flow (starts music and shows proposal)
+      function startLoveFlow(){
+        // Attempt to play music — must be in response to a user gesture (click)
+        safePlayAudio();
+        show(proposal);
+        openBtn.setAttribute('aria-expanded','true');
+      }
+
+      // Yes/No handlers
+      yesBtn.addEventListener('click', ()=>{
+        hide(proposal);
+        show(loveMessage);
+      });
+      noBtn.addEventListener('click', ()=>{
+        // Friendly fallback for "No"
+        alert("It’s okay 😊 My feelings remain the same ❤️");
+        hide(proposal);
+      });
+
+      openBtn.addEventListener('click', startLoveFlow);
+      openBtn.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' || e.key === ' ') startLoveFlow();
+      });
+
+      // Audio control buttons
+      audioToggle.addEventListener('click', () => {
+        if(bg.paused){
+          safePlayAudio();
+        } else {
+          safePauseAudio();
+        }
+      });
+
+      muteBtn.addEventListener('click', () => {
+        bg.muted = !bg.muted;
+        muteBtn.setAttribute('aria-pressed', String(bg.muted));
+        muteBtn.textContent = bg.muted ? 'Unmute' : 'Mute';
+      });
+
+      // Heart creation (lightweight)
+      function createHeart(){
+        if(!heartsEnabled) return;
+
+        const heart = document.createElement('div');
+        heart.className = 'heart';
+        heart.textContent = '❤️';
+
+        // Random horizontal start between 5% and 95% of viewport width
+        const left = Math.random() * 90 + 5;
+        heart.style.left = left + 'vw';
+
+        // Random size and duration
+        const size = 12 + Math.random() * 22; // px
+        heart.style.fontSize = size + 'px';
+        const duration = 4 + Math.random() * 3; // seconds
+        heart.style.animationDuration = duration + 's';
+        heart.style.opacity = (0.8 + Math.random() * 0.2).toString();
+
+        heartsContainer.appendChild(heart);
+
+        // Remove after animation ends (supports paused/reduced-motion)
+        heart.addEventListener('animationend', () => heart.remove(), {once: true});
+
+        // Fallback removal after max duration + small margin
+        setTimeout(() => {
+          if(heart.parentNode) heart.remove();
+        }, (duration * 1000) + 200);
+      }
+
+      // Start/stop heart generation
+      function startHearts(){
+        if(heartsInterval) return;
+        createHeart(); // immediate
+        heartsInterval = setInterval(createHeart, 600); // ~1.6 hearts/sec
+      }
+      function stopHearts(){
+        clearInterval(heartsInterval);
+        heartsInterval = null;
+      }
+
+      // Only run hearts when page is visible & user hasn't requested reduced motion
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(!prefersReduced){
+        // Use IntersectionObserver to only generate hearts while the card is in view
+        const obs = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if(entry.isIntersecting){
+              startHearts();
+            } else {
+              stopHearts();
+            }
+          });
+        }, {threshold: 0.2});
+        obs.observe(document.getElementById('card'));
+      }
+
+      // Pause hearts and music when page/tab hidden
+      document.addEventListener('visibilitychange', () => {
+        if(document.hidden){
+          stopHearts();
+          // Do not automatically pause user's music choice (but you may choose to)
+          // bg.pause();
+        } else {
+          if(!prefersReduced) startHearts();
+        }
+      });
+
+      // Clean up hearts on unload
+      window.addEventListener('beforeunload', () => stopHearts());
+
+      // Accessibility: expose keyboard "*
+
